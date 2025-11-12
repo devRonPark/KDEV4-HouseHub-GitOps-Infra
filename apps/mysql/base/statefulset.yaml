@@ -1,0 +1,86 @@
+apiVersion: apps/v1 
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    app: mysql 
+spec:
+  serviceName: mysql
+  replicas: 1 # Single Instance (scalable later)
+  selector:
+    matchLabels:
+      app: mysql 
+  template:
+    metadata:
+      labels:
+        app: mysql 
+    spec:
+      containers:
+      - name: mysql 
+        image: mysql:8.0
+        ports:
+        - name: mysql
+          containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secrets 
+              key: root-password 
+        - name: MYSQL_DATABASE
+          value: "househub_db"
+        - name: MYSQL_USER 
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secrets 
+              key: username
+        - name: MYSQL_PASSWORD 
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secrets
+              key: password
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        - name: mysql-config
+          mountPath: /etc/mysql/conf.d
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 1
+      volumes:
+      - name: mysql-config
+        configMap:
+          name: mysql-config
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: local-path  # 클러스터에 맞게 수정 (gp2, standard 등)
+      resources:
+        requests:
+          storage: 10Gi  # 필요에 따라 조정
