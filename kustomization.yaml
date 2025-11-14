@@ -13,4 +13,3 @@ labels:
   - pairs:
       app: redis
       component: cache
-      managed-by: fleet
